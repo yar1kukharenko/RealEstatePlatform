@@ -1,0 +1,22 @@
+# Виртуальное окружение
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Лог-файлы
+*.log
+*.sqlite3
+db.sqlite3
+
+# Переменные окружения
+.env
+.env.local
+.env.production
+
+# Кэш и временные файлы
+.mypy_cache/
+.pytest_cache/
+
+.DS_Store
+.idea

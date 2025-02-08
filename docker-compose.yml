@@ -1,0 +1,40 @@
+services:
+  backend:
+    build: ./real_estate_platform_backend
+    container_name: real_estate_backend
+    env_file:
+      - ./real_estate_platform_backend/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    volumes:
+      - ./real_estate_platform_backend:/app
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+  frontend:
+    build: ./real_estate_platform_frontend
+    container_name: real_estate_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./real_estate_platform_frontend:/app
+    command: ["npm", "run", "dev"]
+
+  db:
+    image: postgres:15
+    container_name: real_estate_db
+    restart: always
+    environment:
+      POSTGRES_DB: real_estate
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
