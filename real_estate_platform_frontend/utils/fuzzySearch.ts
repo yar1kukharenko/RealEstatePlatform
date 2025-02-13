@@ -1,5 +1,5 @@
 import levenshtein from 'fast-levenshtein';
-import { Person } from '@/types/types';
+import { Client } from '@/types/types';
 
 /**
  * Реализует нечёткий поиск по ФИО.
@@ -16,7 +16,7 @@ import { Person } from '@/types/types';
  * @param query - поисковый запрос (например, "Иван" или "Иван Иванов")
  * @returns отфильтрованный массив, содержащий подходящих клиентов
  */
-export function fuzzySearch<T extends Person>(data: T[], query: string): T[] {
+export function fuzzySearch<T extends Client>(data: T[], query: string): T[] {
   if (!query.trim()) return data;
 
   // Разбиваем запрос по пробелам и приводим все к нижнему регистру

@@ -8,13 +8,13 @@ import {
   DialogTitle,
   TextField,
 } from '@mui/material';
-import { Person } from '@/types/types';
+import { Client } from '@/types/types';
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
 import { useEffect } from 'react';
 
-interface FormPerson extends Omit<Person, 'phone_number' | 'email' | 'id'> {
+interface FormPerson extends Omit<Client, 'phone_number' | 'email' | 'id'> {
   id?: number;
   phone_number?: string | null;
   email?: string | null;
