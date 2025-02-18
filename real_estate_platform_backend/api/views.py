@@ -3,8 +3,8 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.response import Response
 
-from .models import Client, Realtor
-from .serializers import ClientSerializer, RealtorSerializer
+from .models import Client, Realtor, Property, Offer, Demand
+from .serializers import ClientSerializer, RealtorSerializer, PropertySerializer, OfferSerializer, DemandSerializer
 
 
 class ClientViewSet(viewsets.ModelViewSet):
@@ -45,3 +45,21 @@ class RealtorViewSet(viewsets.ModelViewSet):
 		realtor = get_object_or_404(Realtor, pk=kwargs["pk"])
 		realtor.delete()
 		return Response({"message": "Риэлтор удалён"}, status=status.HTTP_204_NO_CONTENT)
+
+
+class PropertyViewSet(viewsets.ModelViewSet):
+	"""API для объектов недвижимости"""
+	queryset = Property.objects.all()
+	serializer_class = PropertySerializer
+
+
+class OfferViewSet(viewsets.ModelViewSet):
+	"""API для предложений"""
+	queryset = Offer.objects.all()
+	serializer_class = OfferSerializer
+
+
+class DemandViewSet(viewsets.ModelViewSet):
+	"""API для потребностей"""
+	queryset = Demand.objects.all()
+	serializer_class = DemandSerializer
