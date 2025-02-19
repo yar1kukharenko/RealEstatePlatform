@@ -25,7 +25,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     const res = await fetch(`${API_URL}${params.id}/`, { method: 'DELETE' });
 
     if (!res.ok) throw new Error('Ошибка удаления риэлтора');
-    return NextResponse.json({ message: 'Риэлтор удалён' }, { status: 204 });
+    return NextResponse.json({ message: 'Риэлтор удалён' }, { status: 200 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'Ошибка удаления риэлтора' }, { status: 500 });

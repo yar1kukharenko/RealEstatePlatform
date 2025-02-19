@@ -52,7 +52,7 @@ const schema = yup
 export default function ClientForm({ open, onClose, onSuccess, client }: ClientFormProps) {
   const {
     handleSubmit,
-    setValue,
+    reset,
     register,
     formState: { errors },
   } = useForm<FormPerson>({
@@ -68,14 +68,23 @@ export default function ClientForm({ open, onClose, onSuccess, client }: ClientF
 
   useEffect(() => {
     if (client) {
-      setValue('first_name', client.first_name);
-      setValue('middle_name', client.middle_name);
-      setValue('last_name', client.last_name);
-      setValue('phone_number', client.phone_number || '');
-      setValue('email', client.email || '');
+      reset({
+        first_name: client.first_name,
+        middle_name: client.middle_name,
+        last_name: client.last_name,
+        phone_number: client.phone_number || '',
+        email: client.email || '',
+      });
+    } else {
+      reset({
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        phone_number: '',
+        email: '',
+      });
     }
-  }, [client, setValue]);
-
+  }, [client, reset, open]);
   const onSubmit = async (data: FormPerson) => {
     try {
       const url = client ? `/api/clients/${client.id}` : '/api/clients';
