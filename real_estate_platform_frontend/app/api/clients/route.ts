@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://real-estate-backend:8000/api/clients/';
+const BASEURL = process.env.NEXT_PUBLIC_API_URL || 'http://real-estate-backend:8000/api';
 
-// 🔹 Получить список клиентов (GET)
+const API_URL = `${BASEURL}/clients/`;
+
 export async function GET() {
   try {
     const res = await fetch(API_URL);
@@ -15,7 +16,6 @@ export async function GET() {
   }
 }
 
-// 🔹 Создать клиента (POST)
 export async function POST(req: Request) {
   try {
     const client = await req.json();

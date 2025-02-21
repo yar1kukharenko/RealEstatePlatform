@@ -1,5 +1,7 @@
 'use client';
 
+import styles from './ClientsList.module.scss';
+
 import { useMemo, useState } from 'react';
 import {
   Button,
@@ -11,20 +13,17 @@ import {
   TextField,
 } from '@mui/material';
 import { Delete, Edit } from '@mui/icons-material';
-import RealtorForm from '@/components/Realtors/RealtorForm';
-import { Realtor } from '@/types/types';
+import ClientForm from '@/components/clients/ClientForm';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import SnackbarNotification from '@/components/SnackbarNotification';
+import { useDeleteClientMutation, useGetClientsQuery } from '@/services/clientsApi';
 import { fuzzySearch } from '@/utils/fuzzySearch';
-import { useDeleteRealtorMutation, useGetRealtorsQuery } from '@/services/realtorsApi';
+import { Client } from '@/types/types';
 
-import styles from './RealtorsList.module.scss';
-
-export default function RealtorsList() {
-  const { data: realtorsData = [], isLoading, refetch } = useGetRealtorsQuery();
+export default function ClientsList() {
+  const { data: clientsData = [], isLoading, refetch } = useGetClientsQuery();
   const [query, setQuery] = useState<string>('');
-
-  const [selectedRealtor, setSelectedRealtor] = useState<Realtor>();
+  const [selectedClient, setSelectedClient] = useState<Client>();
   const [openForm, setOpenForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -38,9 +37,21 @@ export default function RealtorsList() {
     severity: 'success',
   });
 
-  const [deleteRealtor] = useDeleteRealtorMutation();
+  const [deleteClient] = useDeleteClientMutation();
 
-  const handleDelete = async (id: number) => {
+  // Функция для получения ФИО клиента
+  const getClientFields = (client: Client) => [
+    client.first_name,
+    client.middle_name,
+    client.last_name,
+  ];
+
+  // Фильтрация клиентов с учетом нечёткого поиска (Левенштейн <= 3)
+  const filteredClients = useMemo(() => {
+    return fuzzySearch(clientsData, query, getClientFields, undefined, 3);
+  }, [clientsData, query]);
+
+  const handleDelete = (id: number) => {
     setDeleteId(id);
     setConfirmDelete(true);
   };
@@ -48,24 +59,20 @@ export default function RealtorsList() {
   const confirmDeleteAction = async () => {
     if (!deleteId) return;
     try {
-      await deleteRealtor(deleteId).unwrap();
-      setSnackbar({ open: true, message: 'Риэлтор успешно удалён', severity: 'success' });
+      await deleteClient(deleteId).unwrap();
+      setSnackbar({ open: true, message: 'Клиент удалён', severity: 'success' });
     } catch (error) {
-      console.error('Ошибка удаления риэлтора', error);
-      setSnackbar({ open: true, message: 'Ошибка при удалении риэлтора', severity: 'error' });
+      console.error(error);
+      setSnackbar({ open: true, message: 'Ошибка при удалении клиента', severity: 'error' });
     }
     setConfirmDelete(false);
     setDeleteId(null);
   };
 
-  const filteredRealtors = useMemo(() => {
-    return fuzzySearch(realtorsData, query);
-  }, [realtorsData, query]);
-
   return (
     <div className={styles.contentWrapper}>
       <TextField
-        label="Поиск риэлторов"
+        label="Поиск клиентов"
         variant="outlined"
         fullWidth
         value={query}
@@ -77,12 +84,12 @@ export default function RealtorsList() {
         variant="contained"
         color="primary"
         onClick={() => {
-          setSelectedRealtor(undefined);
+          setSelectedClient(undefined);
           setOpenForm(true);
         }}
         sx={{ marginBottom: 2 }}
       >
-        Добавить риэлтора
+        Добавить клиента
       </Button>
 
       {isLoading ? (
@@ -91,46 +98,46 @@ export default function RealtorsList() {
         </div>
       ) : (
         <List>
-          {filteredRealtors.map((realtor) => (
+          {filteredClients.map((client) => (
             <ListItem
-              key={realtor.id}
+              key={client.id}
               secondaryAction={
                 <>
                   <IconButton
                     onClick={() => {
-                      setSelectedRealtor(realtor);
+                      setSelectedClient(client);
                       setOpenForm(true);
                     }}
                   >
                     <Edit />
                   </IconButton>
-                  <IconButton onClick={() => handleDelete(realtor.id!)} color="error">
+                  <IconButton onClick={() => handleDelete(client.id)} color="error">
                     <Delete />
                   </IconButton>
                 </>
               }
             >
               <ListItemText
-                primary={`${realtor.first_name} ${realtor.middle_name} ${realtor.last_name} (Комиссия: ${realtor.commission_rate}%)`}
+                primary={`${client.first_name} ${client.middle_name} ${client.last_name}`}
               />
             </ListItem>
           ))}
         </List>
       )}
 
-      <RealtorForm
+      <ClientForm
         open={openForm}
-        onClose={() => setOpenForm(false)}
         onSuccess={() => refetch()}
-        realtor={selectedRealtor}
+        onClose={() => setOpenForm(false)}
+        client={selectedClient}
       />
 
       <ConfirmDialog
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         onConfirm={confirmDeleteAction}
-        title="Удаление риэлтора"
-        description="Вы уверены, что хотите удалить этого риэлтора? Это действие нельзя отменить."
+        title="Удаление клиента"
+        description="Вы уверены, что хотите удалить этого клиента? Это действие нельзя отменить."
       />
 
       <SnackbarNotification

@@ -41,6 +41,7 @@ export default function RealtorForm({ open, onClose, onSuccess, realtor }: Realt
   const {
     handleSubmit,
     setValue,
+    reset,
     register,
     formState: { errors },
   } = useForm<FormRealtor>({
@@ -55,12 +56,21 @@ export default function RealtorForm({ open, onClose, onSuccess, realtor }: Realt
 
   useEffect(() => {
     if (realtor) {
-      setValue('first_name', realtor.first_name || '');
-      setValue('middle_name', realtor.middle_name || '');
-      setValue('last_name', realtor.last_name || '');
-      setValue('commission_rate', realtor.commission_rate ?? 0);
+      reset({
+        first_name: realtor.first_name || '',
+        middle_name: realtor.middle_name || '',
+        last_name: realtor.last_name || '',
+        commission_rate: realtor.commission_rate ?? 0,
+      });
+    } else {
+      reset({
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        commission_rate: 0,
+      });
     }
-  }, [realtor, setValue]);
+  }, [realtor, reset]);
 
   const onSubmit = async (data: FormRealtor): Promise<void> => {
     try {

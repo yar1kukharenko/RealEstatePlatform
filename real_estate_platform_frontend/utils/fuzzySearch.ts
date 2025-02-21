@@ -1,36 +1,79 @@
 import levenshtein from 'fast-levenshtein';
-import { Client } from '@/types/types';
 
 /**
- * Реализует нечёткий поиск по ФИО.
- * Клиент считается подходящим, если для каждого слова из запроса
- * найдется хотя бы одно поле (фамилия, имя или отчество), расстояние
- * Левенштейна между которым и словом не превышает 3.
+ * Универсальная функция нечёткого поиска с поддержкой клиентов, риэлторов и недвижимости.
  *
- * Примеры:
- * - Если введено одно слово, оно сравнивается с каждым из полей.
- * - Если введено два слова, для каждого из них должно быть найдено совпадение
- *   хотя бы в одном из полей.
- *
- * @param data - массив объектов Person
- * @param query - поисковый запрос (например, "Иван" или "Иван Иванов")
- * @returns отфильтрованный массив, содержащий подходящих клиентов
+ * @param data - массив объектов (клиенты, риэлторы или недвижимость)
+ * @param query - поисковый запрос
+ * @param getFields - функция, возвращающая текстовые поля объекта для поиска
+ * @param getNumberFields - функция, возвращающая поля номера дома и квартиры (если применимо)
+ * @param maxTextDistance - максимальное расстояние Левенштейна для строковых полей (по умолчанию 3)
+ * @param maxNumberDistance - максимальное расстояние Левенштейна для номеров дома и квартиры (по умолчанию 1)
+ * @returns отфильтрованный массив объектов, соответствующих критериям поиска
  */
-export function fuzzySearch<T extends Client>(data: T[], query: string): T[] {
+export function fuzzySearch<T>(
+  data: T[],
+  query: string,
+  getFields: (item: T) => string[],
+  getNumberFields?: (item: T) => string[],
+  maxTextDistance: number = 3,
+  maxNumberDistance: number = 1,
+): T[] {
   if (!query.trim()) return data;
 
-  // Разбиваем запрос по пробелам и приводим все к нижнему регистру
   const queryParts = query.trim().toLowerCase().split(/\s+/);
+  console.log('Query parts:', queryParts);
 
-  return data.filter((item) => {
-    // Получаем массив полей ФИО в нижнем регистре
-    const fields = [
-      item.last_name.toLowerCase(),
-      item.first_name.toLowerCase(),
-      item.middle_name.toLowerCase(),
-    ];
+  return data.filter((item, index) => {
+    const textFields = getFields(item)
+      .map((field) => field?.toLowerCase().trim())
+      .filter(Boolean); // Remove undefined, null, or empty strings
 
-    // Для каждого слова из запроса проверяем, что хотя бы одно поле удовлетворяет условию
-    return queryParts.every((q) => fields.some((field) => levenshtein.get(field, q) <= 3));
+    const numberFields = getNumberFields
+      ? getNumberFields(item)
+          .map((field) => field?.toLowerCase().trim())
+          .filter(Boolean)
+      : [];
+
+    console.log(`\nItem [${index}]:`, item);
+    console.log('  Text fields:', textFields);
+    console.log('  Number fields:', numberFields);
+
+    // Calculate Levenshtein distances for text fields
+    let textMatch = false;
+    for (const q of queryParts) {
+      for (const field of textFields) {
+        const distance = levenshtein.get(field, q);
+        console.log(`  Text distance: "${field}" vs "${q}" =`, distance);
+        if (distance <= maxTextDistance) {
+          textMatch = true;
+          break;
+        }
+      }
+      if (textMatch) break; // No need to check further
+    }
+    console.log('  Text match result:', textMatch);
+
+    // Calculate Levenshtein distances for number fields
+    let numberMatch = !numberFields.length; // Default to true if no number fields
+    if (numberFields.length) {
+      for (const q of queryParts) {
+        for (const field of numberFields) {
+          const distance = levenshtein.get(field, q);
+          console.log(`  Number distance: "${field}" vs "${q}" =`, distance);
+          if (distance <= maxNumberDistance) {
+            numberMatch = true;
+            break;
+          }
+        }
+        if (numberMatch) break; // No need to check further
+      }
+    }
+    console.log('  Number match result:', numberMatch);
+
+    const overallMatch = textMatch && numberMatch;
+    console.log('  Overall match:', overallMatch);
+
+    return overallMatch;
   });
 }

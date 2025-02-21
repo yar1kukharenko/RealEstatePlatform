@@ -4,11 +4,11 @@ import { Realtor } from '@/types/types';
 export const realtorsApi = createApi({
   reducerPath: 'realtorsApi',
   baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
-  tagTypes: ['Realtors'],
+  tagTypes: ['realtors'],
   endpoints: (builder) => ({
     getRealtors: builder.query<Realtor[], void>({
       query: () => '/realtors/',
-      providesTags: ['Realtors'],
+      providesTags: ['realtors'],
     }),
     addRealtor: builder.mutation<Realtor, Realtor>({
       query: (newRealtor) => ({
@@ -16,7 +16,7 @@ export const realtorsApi = createApi({
         method: 'POST',
         body: newRealtor,
       }),
-      invalidatesTags: ['Realtors'],
+      invalidatesTags: ['realtors'],
     }),
     updateRealtor: builder.mutation<Realtor, { id: number; data: Realtor }>({
       query: ({ id, data }) => ({
@@ -24,14 +24,14 @@ export const realtorsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['Realtors'],
+      invalidatesTags: ['realtors'],
     }),
     deleteRealtor: builder.mutation<{ message: string }, number>({
       query: (id) => ({
         url: `/realtors/${id}/`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Realtors'],
+      invalidatesTags: ['realtors'],
     }),
   }),
 });

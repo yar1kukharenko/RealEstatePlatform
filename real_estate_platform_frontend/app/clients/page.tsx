@@ -1,6 +1,6 @@
 import { Container, Typography } from '@mui/material';
 
-import ClientsList from '@/components/Clients/ClientsList/ClientsList';
+import ClientsList from '@/components/clients/ClientsList/ClientsList';
 
 export default async function ClientsPage() {
   return (

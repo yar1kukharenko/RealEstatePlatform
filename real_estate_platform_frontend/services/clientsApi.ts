@@ -4,11 +4,11 @@ import { Client } from '@/types/types';
 export const clientsApi = createApi({
   reducerPath: 'clientsApi',
   baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
-  tagTypes: ['Clients'],
+  tagTypes: ['clients'],
   endpoints: (builder) => ({
     getClients: builder.query<Client[], void>({
       query: () => '/clients/',
-      providesTags: ['Clients'],
+      providesTags: ['clients'],
     }),
     addClient: builder.mutation<Client, Partial<Client>>({
       query: (newClient) => ({
@@ -16,7 +16,7 @@ export const clientsApi = createApi({
         method: 'POST',
         body: newClient,
       }),
-      invalidatesTags: ['Clients'],
+      invalidatesTags: ['clients'],
     }),
     updateClient: builder.mutation<Client, { id: number; data: Partial<Client> }>({
       query: ({ id, data }) => ({
@@ -24,14 +24,14 @@ export const clientsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['Clients'],
+      invalidatesTags: ['clients'],
     }),
     deleteClient: builder.mutation<{ message: string }, number>({
       query: (id) => ({
         url: `/clients/${id}/`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Clients'],
+      invalidatesTags: ['clients'],
     }),
   }),
 });
