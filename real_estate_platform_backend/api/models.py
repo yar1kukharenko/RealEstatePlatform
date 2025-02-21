@@ -30,16 +30,65 @@ class Realtor(models.Model):
 
 class Property(models.Model):
 	"""Модель объекта недвижимости"""
-	title = models.CharField(max_length=255)
-	description = models.TextField(blank=True, null=True)
-	price = models.DecimalField(max_digits=12, decimal_places=2)
-	address = models.CharField(max_length=255)
-	property_type = models.CharField(max_length=50, choices=[('apartment', 'Квартира'), ('house', 'Дом'),
-	                                                         ('commercial', 'Коммерческая')])
+	# title = models.CharField(max_length=255)
+	# description = models.TextField(blank=True, null=True)
+	# price = models.DecimalField(max_digits=12, decimal_places=2)
+
+	# Адресные данные
+	city = models.CharField(max_length=100, blank=True, null=True)
+	street = models.CharField(max_length=100, blank=True, null=True)
+	house_number = models.CharField(max_length=10, blank=True, null=True)
+	apartment_number = models.CharField(max_length=10, blank=True, null=True)
+
+	# Координаты
+	latitude = models.FloatField(blank=True, null=True)
+	longitude = models.FloatField(blank=True, null=True)
+
+	# Тип недвижимости
+	property_type = models.CharField(
+		max_length=50,
+		choices=[
+			("apartment", "Квартира"),
+			("house", "Дом"),
+			("land", "Земля"),
+		],
+	)
+
+	# Специфические поля
+	floor = models.PositiveIntegerField(blank=True, null=True)  # Только для квартир
+	total_floors = models.PositiveIntegerField(blank=True, null=True)  # Только для домов
+	rooms = models.PositiveIntegerField(blank=True, null=True)  # Количество комнат (для квартир и домов)
+	area = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Площадь (для всех типов)
+
 	created_at = models.DateTimeField(auto_now_add=True)
 
+	def clean(self):
+		"""Валидация модели"""
+		if self.latitude and (self.latitude < -90 or self.latitude > 90):
+			raise ValidationError("Широта должна быть в пределах от -90 до +90")
+		if self.longitude and (self.longitude < -180 or self.longitude > 180):
+			raise ValidationError("Долгота должна быть в пределах от -180 до +180")
+
+		# Проверяем соответствие полей типу недвижимости
+		if self.property_type == "apartment":
+			if self.total_floors is not None:
+				raise ValidationError("Квартира не может иметь поле 'этажность дома'")
+		elif self.property_type == "house":
+			if self.floor is not None:
+				raise ValidationError("Дом не может иметь поле 'этаж'")
+		elif self.property_type == "land":
+			if self.floor is not None or self.total_floors is not None or self.rooms is not None:
+				raise ValidationError(
+					"Земельный участок не может иметь поля 'этаж', 'этажность дома' или 'количество комнат'")
+
+	def delete(self, *args, **kwargs):
+		"""Запрещаем удаление, если объект связан с предложением"""
+		if self.offer_set.exists():
+			raise ValidationError("Нельзя удалить объект недвижимости, связанный с предложением")
+		super().delete(*args, **kwargs)
+
 	def __str__(self):
-		return f"{self.title} - {self.address} ({self.property_type})"
+		return f"{self.title} - {self.city}, {self.street}, {self.house_number} ({self.property_type})"
 
 
 class Offer(models.Model):
