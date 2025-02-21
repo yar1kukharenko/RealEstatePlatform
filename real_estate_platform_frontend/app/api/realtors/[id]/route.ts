@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://real-estate-backend:8000/api/realtors/';
+const BASEURL = process.env.NEXT_PUBLIC_API_URL || 'http://real-estate-backend:8000/api';
+
+const API_URL = `${BASEURL}/realtors/`;
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
