@@ -16,6 +16,8 @@ class RealtorSerializer(serializers.ModelSerializer):
 
 
 class PropertySerializer(serializers.ModelSerializer):
+	full_address = serializers.CharField(source='get_full_address', read_only=True)
+
 	class Meta:
 		model = Property
 		fields = "__all__"
@@ -50,33 +52,52 @@ class PropertySerializer(serializers.ModelSerializer):
 
 
 class OfferSerializer(serializers.ModelSerializer):
+	client = ClientSerializer(read_only=True)
+	realtor = RealtorSerializer(read_only=True)
+	property = PropertySerializer(read_only=True)
+
 	class Meta:
 		model = Offer
-		fields = '__all__'
+		fields = ('id', 'price', 'status', 'created_at', 'client', 'property', 'realtor')
 
 	def validate_price(self, value):
-		"""Проверка цены предложения"""
-		property_instance = self.instance.property if self.instance else self.initial_data.get('property')
-		if property_instance and property_instance.price != value:
-			raise serializers.ValidationError("Цена предложения должна совпадать с ценой недвижимости")
+		# Здесь можно добавить дополнительную логику проверки цены
 		if value <= 0:
 			raise serializers.ValidationError("Цена должна быть положительной")
 		return value
 
 	def validate_client(self, value):
-		"""Клиент обязателен"""
 		if not value:
 			raise serializers.ValidationError("Клиент обязателен")
 		return value
 
 
 class DemandSerializer(serializers.ModelSerializer):
+	client = ClientSerializer(read_only=True)
+	realtor = RealtorSerializer(read_only=True)
+	address = PropertySerializer(read_only=True)
+
 	class Meta:
 		model = Demand
 		fields = '__all__'
-
+ 
 	def validate(self, data):
-		"""Проверка диапазона цен"""
 		if data['min_price'] >= data['max_price']:
 			raise serializers.ValidationError("Минимальная цена должна быть меньше максимальной")
+
+		# Валидация дополнительных полей в зависимости от типа объекта недвижимости
+		property_type = data.get('property_type')
+		if property_type == 'apartment':
+			required = ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_floor', 'max_floor']
+		elif property_type == 'house':
+			required = ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_total_floors', 'max_total_floors']
+		elif property_type == 'land':
+			required = ['min_area', 'max_area']
+		else:
+			required = []
+
+		for field in required:
+			if data.get(field) is None:
+				raise serializers.ValidationError({field: "Это поле обязательно для выбранного типа недвижимости"})
+
 		return data

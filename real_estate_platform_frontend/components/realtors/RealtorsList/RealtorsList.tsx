@@ -7,6 +7,7 @@ import {
   IconButton,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
   TextField,
 } from '@mui/material';
@@ -16,14 +17,18 @@ import { Realtor } from '@/types/types';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import SnackbarNotification from '@/components/SnackbarNotification';
 import { fuzzySearch } from '@/utils/fuzzySearch';
-import { useDeleteRealtorMutation, useGetRealtorsQuery } from '@/services/realtorsApi';
+import {
+  useDeleteRealtorMutation,
+  useGetRealtorRelatedQuery,
+  useGetRealtorsQuery,
+} from '@/services/realtorsApi';
 
 import styles from './RealtorsList.module.scss';
+import RelatedDataDialog from '@/components/RelatedDataDialog/RelatedDataDialog';
 
 export default function RealtorsList() {
   const { data: realtorsData = [], isLoading, refetch } = useGetRealtorsQuery();
   const [query, setQuery] = useState<string>('');
-
   const [selectedRealtor, setSelectedRealtor] = useState<Realtor>();
   const [openForm, setOpenForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -50,6 +55,7 @@ export default function RealtorsList() {
     try {
       await deleteRealtor(deleteId).unwrap();
       setSnackbar({ open: true, message: 'Риэлтор успешно удалён', severity: 'success' });
+      await refetch();
     } catch (error) {
       console.error('Ошибка удаления риэлтора', error);
       setSnackbar({ open: true, message: 'Ошибка при удалении риэлтора', severity: 'error' });
@@ -69,6 +75,11 @@ export default function RealtorsList() {
   const filteredRealtors = useMemo(() => {
     return fuzzySearch(realtorsData, query, getRealtorFields, undefined, 3);
   }, [realtorsData, query]);
+
+  const { data: relatedData, isLoading: relatedLoading } = useGetRealtorRelatedQuery(
+    selectedRealtor?.id ?? 0,
+    { skip: !selectedRealtor },
+  );
 
   return (
     <div className={styles.contentWrapper}>
@@ -118,12 +129,28 @@ export default function RealtorsList() {
                 </>
               }
             >
-              <ListItemText
-                primary={`${realtor.first_name} ${realtor.middle_name} ${realtor.last_name} (Комиссия: ${realtor.commission_rate}%)`}
-              />
+              <ListItemButton
+                onClick={() => setSelectedRealtor(realtor)}
+                selected={selectedRealtor?.id === realtor.id}
+              >
+                <ListItemText
+                  primary={`${realtor.first_name} ${realtor.middle_name} ${realtor.last_name} (Комиссия: ${realtor.commission_rate}%)`}
+                />
+              </ListItemButton>
             </ListItem>
           ))}
         </List>
+      )}
+
+      {/* Панель для отображения связанных данных выбранного клиента */}
+      {selectedRealtor && (
+        <RelatedDataDialog
+          open={!!selectedRealtor}
+          onCloseAction={() => setSelectedRealtor(undefined)}
+          title={`Данные для риелтора: ${selectedRealtor.first_name} ${selectedRealtor.last_name}`}
+          relatedData={relatedData}
+          isLoading={relatedLoading}
+        />
       )}
 
       <RealtorForm

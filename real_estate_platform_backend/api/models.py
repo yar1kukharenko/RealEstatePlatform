@@ -87,8 +87,21 @@ class Property(models.Model):
 			raise ValidationError("Нельзя удалить объект недвижимости, связанный с предложением")
 		super().delete(*args, **kwargs)
 
+	def get_full_address(self):
+		"""Возвращает полный адрес объекта недвижимости"""
+		parts = []
+		if self.city:
+			parts.append(self.city)
+		if self.street:
+			parts.append(self.street)
+		if self.house_number:
+			parts.append("д. " + self.house_number)
+		if self.apartment_number:
+			parts.append("кв. " + self.apartment_number)
+		return ", ".join(parts)
+
 	def __str__(self):
-		return f"{self.title} - {self.city}, {self.street}, {self.house_number} ({self.property_type})"
+		return f"{self.city}, {self.street}, {self.house_number} ({self.property_type})"
 
 
 class Offer(models.Model):
@@ -96,23 +109,30 @@ class Offer(models.Model):
 	client = models.ForeignKey('Client', on_delete=models.CASCADE)
 	property = models.ForeignKey(Property, on_delete=models.CASCADE)
 	realtor = models.ForeignKey('Realtor', on_delete=models.SET_NULL, null=True, blank=True)
-	price = models.DecimalField(max_digits=12, decimal_places=2)
-	status = models.CharField(max_length=50, choices=[('active', 'Активно'), ('closed', 'Закрыто')], default='active')
+	# Цена – целое положительное число
+	price = models.PositiveIntegerField()
+	status = models.CharField(
+		max_length=50,
+		choices=[('active', 'Активно'), ('closed', 'Закрыто')],
+		default='active'
+	)
 	created_at = models.DateTimeField(auto_now_add=True)
 
 	def clean(self):
-		"""Проверки перед сохранением"""
 		if self.price <= 0:
 			raise ValidationError("Цена предложения должна быть положительной")
 		if not self.client:
 			raise ValidationError("Клиент обязателен для предложения")
-		if self.property.price != self.price:
-			raise ValidationError("Цена предложения должна совпадать с ценой недвижимости")
 
 	def save(self, *args, **kwargs):
-		"""Вызов clean() перед сохранением"""
 		self.clean()
 		super().save(*args, **kwargs)
+
+	def delete(self, *args, **kwargs):
+		# Если предложение участвует в сделке (например, имеет статус closed) – удаление запрещено
+		if self.status == 'closed':
+			raise ValidationError("Нельзя удалить предложение, участвующее в сделке")
+		super().delete(*args, **kwargs)
 
 	def __str__(self):
 		return f"Предложение {self.client} - {self.property} за {self.price} руб."
@@ -121,24 +141,62 @@ class Offer(models.Model):
 class Demand(models.Model):
 	"""Потребность (покупка недвижимости)"""
 	client = models.ForeignKey('Client', on_delete=models.CASCADE)
-	min_price = models.DecimalField(max_digits=12, decimal_places=2)
-	max_price = models.DecimalField(max_digits=12, decimal_places=2)
-	property_type = models.CharField(max_length=50, choices=[('apartment', 'Квартира'), ('house', 'Дом'),
-	                                                         ('commercial', 'Коммерческая')])
 	realtor = models.ForeignKey('Realtor', on_delete=models.SET_NULL, null=True, blank=True)
+	# Тип объекта – только квартира, дом или земля
+	property_type = models.CharField(
+		max_length=50,
+		choices=[('apartment', 'Квартира'), ('house', 'Дом'), ('land', 'Земля')]
+	)
+	address = models.ForeignKey(Property, on_delete=models.CASCADE, null=True, blank=True)  # Обязательное поле адреса
+	min_price = models.PositiveIntegerField()
+	max_price = models.PositiveIntegerField()
 	created_at = models.DateTimeField(auto_now_add=True)
 
+	# Дополнительные поля для квартиры
+	min_area = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+	max_area = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+	min_rooms = models.PositiveIntegerField(null=True, blank=True)
+	max_rooms = models.PositiveIntegerField(null=True, blank=True)
+	min_floor = models.PositiveIntegerField(null=True, blank=True)
+	max_floor = models.PositiveIntegerField(null=True, blank=True)
+
+	# Дополнительные поля для дома
+	min_total_floors = models.PositiveIntegerField(null=True, blank=True)
+	max_total_floors = models.PositiveIntegerField(null=True, blank=True)
+
 	def clean(self):
-		"""Проверки перед сохранением"""
 		if self.min_price <= 0 or self.max_price <= 0:
 			raise ValidationError("Минимальная и максимальная цена должны быть положительными")
 		if self.min_price >= self.max_price:
 			raise ValidationError("Минимальная цена должна быть меньше максимальной")
 
+		# Проверка дополнительных полей в зависимости от типа недвижимости
+		if self.property_type == 'apartment':
+			required_fields = ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_floor', 'max_floor']
+			for field in required_fields:
+				if getattr(self, field) is None:
+					raise ValidationError(f"Поле {field} обязательно для потребности в квартире")
+		elif self.property_type == 'house':
+			required_fields = ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_total_floors', 'max_total_floors']
+			for field in required_fields:
+				if getattr(self, field) is None:
+					raise ValidationError(f"Поле {field} обязательно для потребности в доме")
+		elif self.property_type == 'land':
+			required_fields = ['min_area', 'max_area']
+			for field in required_fields:
+				if getattr(self, field) is None:
+					raise ValidationError(f"Поле {field} обязательно для потребности в земле")
+
 	def save(self, *args, **kwargs):
-		"""Вызов clean() перед сохранением"""
 		self.clean()
 		super().save(*args, **kwargs)
+
+	def delete(self, *args, **kwargs):
+		# Здесь можно реализовать проверку – если потребность участвует в сделке, удаление запрещено.
+		# Например, если будет связь с моделью Deal:
+		# if self.deal_set.exists():
+		#     raise ValidationError("Нельзя удалить потребность, участвующую в сделке")
+		super().delete(*args, **kwargs)
 
 	def __str__(self):
 		return f"Потребность клиента {self.client}: {self.property_type} от {self.min_price} до {self.max_price} руб."

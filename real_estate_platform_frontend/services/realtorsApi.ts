@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { Realtor } from '@/types/types';
+import { Demand, Offer, Realtor } from '@/types/types';
 
 export const realtorsApi = createApi({
   reducerPath: 'realtorsApi',
@@ -9,6 +9,15 @@ export const realtorsApi = createApi({
     getRealtors: builder.query<Realtor[], void>({
       query: () => '/realtors/',
       providesTags: ['realtors'],
+    }),
+    getRealtorRelated: builder.query<
+      {
+        offers: Offer[];
+        demands: Demand[];
+      },
+      number
+    >({
+      query: (realtorId) => `/realtors/${realtorId}/related/`,
     }),
     addRealtor: builder.mutation<Realtor, Realtor>({
       query: (newRealtor) => ({
@@ -41,4 +50,5 @@ export const {
   useAddRealtorMutation,
   useUpdateRealtorMutation,
   useDeleteRealtorMutation,
+  useGetRealtorRelatedQuery,
 } = realtorsApi;

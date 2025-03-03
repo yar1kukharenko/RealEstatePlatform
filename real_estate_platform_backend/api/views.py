@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Client, Realtor, Property, Offer, Demand
@@ -26,6 +27,17 @@ class ClientViewSet(viewsets.ModelViewSet):
 		client.delete()
 		return Response({"message": "Клиент удалён"}, status=status.HTTP_204_NO_CONTENT)
 
+	@action(detail=True, methods=['get'])
+	def related(self, request, pk=None):
+		client = self.get_object()
+		offers = Offer.objects.filter(client=client)
+		demands = Demand.objects.filter(client=client)
+		data = {
+			"offers": OfferSerializer(offers, many=True).data,
+			"demands": DemandSerializer(demands, many=True).data,
+		}
+		return Response(data, status=status.HTTP_200_OK)
+
 
 class RealtorViewSet(viewsets.ModelViewSet):
 	queryset = Realtor.objects.all()
@@ -45,6 +57,17 @@ class RealtorViewSet(viewsets.ModelViewSet):
 		realtor = get_object_or_404(Realtor, pk=kwargs["pk"])
 		realtor.delete()
 		return Response({"message": "Риэлтор удалён"}, status=status.HTTP_204_NO_CONTENT)
+
+	@action(detail=True, methods=['get'])
+	def related(self, request, pk=None):
+		realtor = self.get_object()
+		offers = Offer.objects.filter(realtor=realtor)
+		demands = Demand.objects.filter(realtor=realtor)
+		data = {
+			"offers": OfferSerializer(offers, many=True).data,
+			"demands": DemandSerializer(demands, many=True).data,
+		}
+		return Response(data, status=status.HTTP_200_OK)
 
 
 class PropertyViewSet(viewsets.ModelViewSet):

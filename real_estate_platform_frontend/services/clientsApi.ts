@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { Client } from '@/types/types';
+import { Client, Demand, Offer } from '@/types/types';
 
 export const clientsApi = createApi({
   reducerPath: 'clientsApi',
@@ -9,6 +9,15 @@ export const clientsApi = createApi({
     getClients: builder.query<Client[], void>({
       query: () => '/clients/',
       providesTags: ['clients'],
+    }),
+    getClientRelated: builder.query<
+      {
+        offers: Offer[];
+        demands: Demand[];
+      },
+      number
+    >({
+      query: (clientId) => `/clients/${clientId}/related/`,
     }),
     addClient: builder.mutation<Client, Partial<Client>>({
       query: (newClient) => ({
@@ -41,4 +50,5 @@ export const {
   useAddClientMutation,
   useUpdateClientMutation,
   useDeleteClientMutation,
+  useGetClientRelatedQuery,
 } = clientsApi;

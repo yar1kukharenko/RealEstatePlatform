@@ -1,7 +1,5 @@
 'use client';
 
-import styles from './ClientsList.module.scss';
-
 import { useMemo, useState } from 'react';
 import {
   Button,
@@ -9,6 +7,7 @@ import {
   IconButton,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
   TextField,
 } from '@mui/material';
@@ -16,14 +15,19 @@ import { Delete, Edit } from '@mui/icons-material';
 import ClientForm from '@/components/clients/ClientForm';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import SnackbarNotification from '@/components/SnackbarNotification';
-import { useDeleteClientMutation, useGetClientsQuery } from '@/services/clientsApi';
+import {
+  useDeleteClientMutation,
+  useGetClientRelatedQuery,
+  useGetClientsQuery,
+} from '@/services/clientsApi';
 import { fuzzySearch } from '@/utils/fuzzySearch';
 import { Client } from '@/types/types';
+import RelatedDataDialog from '@/components/RelatedDataDialog/RelatedDataDialog';
 
 export default function ClientsList() {
   const { data: clientsData = [], isLoading, refetch } = useGetClientsQuery();
   const [query, setQuery] = useState<string>('');
-  const [selectedClient, setSelectedClient] = useState<Client>();
+  const [selectedClient, setSelectedClient] = useState<Client | undefined>(undefined);
   const [openForm, setOpenForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -61,6 +65,7 @@ export default function ClientsList() {
     try {
       await deleteClient(deleteId).unwrap();
       setSnackbar({ open: true, message: 'Клиент удалён', severity: 'success' });
+      await refetch();
     } catch (error) {
       console.error(error);
       setSnackbar({ open: true, message: 'Ошибка при удалении клиента', severity: 'error' });
@@ -69,8 +74,15 @@ export default function ClientsList() {
     setDeleteId(null);
   };
 
+  // Хук для получения связанных данных выбранного клиента.
+  // Он запускается, только если выбран клиент.
+  const { data: relatedData, isLoading: relatedLoading } = useGetClientRelatedQuery(
+    selectedClient?.id ?? 0,
+    { skip: !selectedClient },
+  );
+
   return (
-    <div className={styles.contentWrapper}>
+    <div>
       <TextField
         label="Поиск клиентов"
         variant="outlined"
@@ -93,7 +105,7 @@ export default function ClientsList() {
       </Button>
 
       {isLoading ? (
-        <div className={styles.loaderWrapper}>
+        <div style={{ textAlign: 'center' }}>
           <CircularProgress />
         </div>
       ) : (
@@ -117,17 +129,36 @@ export default function ClientsList() {
                 </>
               }
             >
-              <ListItemText
-                primary={`${client.first_name} ${client.middle_name} ${client.last_name}`}
-              />
+              <ListItemButton
+                onClick={() => setSelectedClient(client)}
+                selected={selectedClient?.id === client.id}
+              >
+                <ListItemText
+                  primary={`${client.first_name} ${client.middle_name} ${client.last_name}`}
+                />
+              </ListItemButton>
             </ListItem>
           ))}
         </List>
       )}
 
+      {/* Панель для отображения связанных данных выбранного клиента */}
+      {selectedClient && (
+        <RelatedDataDialog
+          open={!!selectedClient}
+          onCloseAction={() => setSelectedClient(undefined)}
+          title={`Данные для клиента: ${selectedClient.first_name} ${selectedClient.last_name}`}
+          relatedData={relatedData}
+          isLoading={relatedLoading}
+        />
+      )}
+
       <ClientForm
         open={openForm}
-        onSuccess={() => refetch()}
+        onSuccess={() => {
+          refetch();
+          setSelectedClient(undefined);
+        }}
         onClose={() => setOpenForm(false)}
         client={selectedClient}
       />
