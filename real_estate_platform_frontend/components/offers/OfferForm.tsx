@@ -2,22 +2,35 @@
 
 import { useEffect } from 'react';
 import {
+  Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Grid,
+  List,
+  ListItem,
+  ListItemText,
   MenuItem,
   TextField,
+  Typography,
 } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 
-import { Client, Offer, Property, Realtor } from '@/types/types';
-import { useAddOfferMutation, useUpdateOfferMutation } from '@/services/offersApi';
+import { Demand, Offer, OfferMutationInput } from '@/types/types';
+import {
+  useAddOfferMutation,
+  useGetOffersQuery,
+  useSearchDemandsForOfferQuery,
+  useUpdateOfferMutation,
+} from '@/services/offersApi';
 import { useGetClientsQuery } from '@/services/clientsApi';
 import { useGetRealtorsQuery } from '@/services/realtorsApi';
 import { useGetPropertiesQuery } from '@/services/propertiesApi';
 import { propertyTypeDict } from '@/utils/propertyTypeDict';
+import { useAddDealMutation } from '@/services/dealsApi';
 
 interface OfferFormValues {
   client: number | undefined;
@@ -61,6 +74,14 @@ export default function OfferForm({ open, onCloseAction, offer }: OfferFormProps
   const { data: clients = [] } = useGetClientsQuery();
   const { data: realtors = [] } = useGetRealtorsQuery();
   const { data: properties = [] } = useGetPropertiesQuery();
+  const [addDeal] = useAddDealMutation();
+
+  const { data: foundDemands = [], isFetching: isSearchingDemands } = useSearchDemandsForOfferQuery(
+    offer?.id ?? 0,
+    { skip: !offer },
+  );
+
+  const { refetch } = useGetOffersQuery();
 
   useEffect(() => {
     if (offer) {
@@ -80,20 +101,38 @@ export default function OfferForm({ open, onCloseAction, offer }: OfferFormProps
     }
   }, [offer, reset]);
 
+  const createDeal = async (demandId: number) => {
+    try {
+      await addDeal({ offer: offer!.id, demand: demandId }).unwrap();
+      onCloseAction();
+      await refetch();
+    } catch (error) {
+      console.error('Ошибка при создании сделки', error);
+    }
+  };
+
   const onSubmit = async (data: OfferFormValues) => {
     try {
-      const transformedData: Partial<Offer> = {
-        client: data.client ? ({ id: data.client } as Client) : undefined,
-        property: data.property ? ({ id: data.property } as Property) : undefined,
-        realtor: data.realtor ? ({ id: data.realtor } as Realtor) : undefined,
+      const transformedData: OfferMutationInput = {
+        client: data.client!,
+        property: data.property!,
+        realtor: data.realtor,
         price: data.price,
       };
+
       if (isEditMode) {
         await updateOffer({ id: offer!.id, data: transformedData }).unwrap();
       } else {
         await addOffer(transformedData).unwrap();
       }
       onCloseAction();
+      await refetch();
+      reset({
+        client: undefined,
+        property: undefined,
+        realtor: undefined,
+        price: undefined,
+      });
     } catch (error) {
       console.error('Ошибка при сохранении предложения', error);
     }
@@ -111,6 +150,7 @@ export default function OfferForm({ open, onCloseAction, offer }: OfferFormProps
           render={({ field }) => (
             <TextField
               {...field}
+              value={field.value ?? ''}
               select
               fullWidth
               label="Клиент"
@@ -136,6 +176,7 @@ export default function OfferForm({ open, onCloseAction, offer }: OfferFormProps
             <TextField
               {...field}
               select
+              value={field.value ?? ''}
               fullWidth
               label="Риэлтор"
               margin="dense"
@@ -159,6 +200,7 @@ export default function OfferForm({ open, onCloseAction, offer }: OfferFormProps
           render={({ field }) => (
             <TextField
               {...field}
+              value={field.value ?? ''}
               select
               fullWidth
               label="Объект недвижимости"
@@ -196,6 +238,51 @@ export default function OfferForm({ open, onCloseAction, offer }: OfferFormProps
             />
           )}
         />
+        {isEditMode && !offer?.fulfilled && (
+          <Box sx={{ mt: 2, p: 1 }}>
+            <Typography variant="h6" gutterBottom>
+              Найденные потребности:
+            </Typography>
+            {isSearchingDemands ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <CircularProgress size={20} />
+              </Box>
+            ) : foundDemands.length ? (
+              <List>
+                {foundDemands.map((demand: Demand) => (
+                  <ListItem key={demand.id} disableGutters>
+                    <Grid container alignItems="center" spacing={2}>
+                      <Grid item xs={12} sm={8}>
+                        <ListItemText
+                          primary={`Объект: ${demand.address.full_address}`}
+                          secondary={`От ${demand.min_price} до ${demand.max_price}`}
+                        />
+                      </Grid>
+                      <Grid
+                        item
+                        xs={12}
+                        sm={4}
+                        sx={{ textAlign: { xs: 'left', sm: 'right' }, mt: { xs: 1, sm: 0 } }}
+                      >
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          onClick={() => createDeal(demand.id)}
+                        >
+                          Создать сделку
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </ListItem>
+                ))}
+              </List>
+            ) : (
+              <Typography variant="body1" sx={{ mt: 1 }}>
+                Предложения не найдены.
+              </Typography>
+            )}
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onCloseAction} color="secondary">

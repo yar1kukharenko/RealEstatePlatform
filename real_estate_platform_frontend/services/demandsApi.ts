@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { Demand } from '@/types/types';
+import { Demand, DemandMutationInput, Offer } from '@/types/types';
 
 export const demandsApi = createApi({
   reducerPath: 'demandsApi',
@@ -10,7 +10,7 @@ export const demandsApi = createApi({
       query: () => '/demands/',
       providesTags: ['Demands'],
     }),
-    addDemand: builder.mutation<Demand, Partial<Demand>>({
+    addDemand: builder.mutation<Demand, DemandMutationInput>({
       query: (newDemand) => ({
         url: '/demands/',
         method: 'POST',
@@ -18,7 +18,7 @@ export const demandsApi = createApi({
       }),
       invalidatesTags: ['Demands'],
     }),
-    updateDemand: builder.mutation<Demand, { id: number; data: Partial<Demand> }>({
+    updateDemand: builder.mutation<Demand, { id: number; data: DemandMutationInput }>({
       query: ({ id, data }) => ({
         url: `/demands/${id}/`,
         method: 'PUT',
@@ -33,6 +33,9 @@ export const demandsApi = createApi({
       }),
       invalidatesTags: ['Demands'],
     }),
+    searchOffersForDemand: builder.query<Offer[], number>({
+      query: (id) => `/demands/${id}/search_offers/`,
+    }),
   }),
 });
 
@@ -41,4 +44,5 @@ export const {
   useAddDemandMutation,
   useUpdateDemandMutation,
   useDeleteDemandMutation,
+  useSearchOffersForDemandQuery,
 } = demandsApi;

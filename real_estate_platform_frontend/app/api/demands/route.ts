@@ -24,11 +24,15 @@ export async function POST(req: Request) {
       body: JSON.stringify(demand),
     });
 
-    if (!res.ok) throw new Error('Ошибка создания потребности');
+    if (!res.ok) {
+      const errorData = await res.json();
+      console.error('Подробности ошибки:', errorData);
+      return NextResponse.json(errorData, { status: res.status });
+    }
     const data = await res.json();
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
-    console.error(error);
+    console.error('Ошибка при обработке запроса:', error);
     return NextResponse.json({ error: 'Ошибка создания потребности' }, { status: 500 });
   }
 }

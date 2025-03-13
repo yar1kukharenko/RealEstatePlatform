@@ -117,6 +117,7 @@ class Offer(models.Model):
 		default='active'
 	)
 	created_at = models.DateTimeField(auto_now_add=True)
+	fulfilled = models.BooleanField(default=False)
 
 	def clean(self):
 		if self.price <= 0:
@@ -151,6 +152,7 @@ class Demand(models.Model):
 	min_price = models.PositiveIntegerField()
 	max_price = models.PositiveIntegerField()
 	created_at = models.DateTimeField(auto_now_add=True)
+	fulfilled = models.BooleanField(default=False)
 
 	# Дополнительные поля для квартиры
 	min_area = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -170,22 +172,13 @@ class Demand(models.Model):
 		if self.min_price >= self.max_price:
 			raise ValidationError("Минимальная цена должна быть меньше максимальной")
 
-		# Проверка дополнительных полей в зависимости от типа недвижимости
-		if self.property_type == 'apartment':
-			required_fields = ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_floor', 'max_floor']
-			for field in required_fields:
-				if getattr(self, field) is None:
-					raise ValidationError(f"Поле {field} обязательно для потребности в квартире")
-		elif self.property_type == 'house':
-			required_fields = ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_total_floors', 'max_total_floors']
-			for field in required_fields:
-				if getattr(self, field) is None:
-					raise ValidationError(f"Поле {field} обязательно для потребности в доме")
-		elif self.property_type == 'land':
-			required_fields = ['min_area', 'max_area']
-			for field in required_fields:
-				if getattr(self, field) is None:
-					raise ValidationError(f"Поле {field} обязательно для потребности в земле")
+		# Дополнительная валидация дополнительных полей можно оставить по желанию, но ошибки за отсутствие не выбрасывать.
+		# Например, если значение указано, оно должно быть положительным:
+		for field in ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_floor', 'max_floor',
+		              'min_total_floors', 'max_total_floors']:
+			value = getattr(self, field)
+			if value is not None and value <= 0:
+				raise ValidationError({field: "Значение должно быть положительным"})
 
 	def save(self, *args, **kwargs):
 		self.clean()
@@ -200,3 +193,60 @@ class Demand(models.Model):
 
 	def __str__(self):
 		return f"Потребность клиента {self.client}: {self.property_type} от {self.min_price} до {self.max_price} руб."
+
+
+class Deal(models.Model):
+	offer = models.OneToOneField('Offer', on_delete=models.PROTECT, related_name='deal')
+	demand = models.OneToOneField('Demand', on_delete=models.PROTECT, related_name='deal')
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	# Комиссии – разрешаем null и blank, так как они вычисляются на сервере
+	seller_fee = models.PositiveIntegerField(null=True, blank=True)
+	buyer_fee = models.PositiveIntegerField(null=True, blank=True)
+	company_share = models.PositiveIntegerField(null=True, blank=True)
+	realtor_share = models.PositiveIntegerField(null=True, blank=True)
+
+	def clean(self):
+		if Deal.objects.filter(offer=self.offer).exclude(pk=self.pk).exists():
+			raise ValidationError("Сделка уже создана для данного предложения.")
+		if Deal.objects.filter(demand=self.demand).exclude(pk=self.pk).exists():
+			raise ValidationError("Сделка уже создана для данной потребности.")
+		self.calculate_fees()
+
+	def calculate_fees(self):
+		property_type = self.offer.property.property_type
+		price = self.offer.price
+
+		if property_type == 'apartment':
+			self.seller_fee = int(36000 + price * 0.01)
+		elif property_type == 'land':
+			self.seller_fee = int(30000 + price * 0.02)
+		elif property_type == 'house':
+			self.seller_fee = int(30000 + price * 0.01)
+
+		self.buyer_fee = int(price * 0.03)
+		total_fee = self.seller_fee + self.buyer_fee
+
+		realtor = self.offer.realtor
+		realtor_percentage = realtor.commission_rate if realtor and realtor.commission_rate else 45
+		self.realtor_share = int(total_fee * (realtor_percentage / 100))
+		self.company_share = total_fee - self.realtor_share
+
+	def save(self, *args, **kwargs):
+		self.full_clean()
+		self.calculate_fees()
+		# Сначала сохраняем сделку
+		super().save(*args, **kwargs)
+		# Потом обновляем флаги fulfilled у связанных объектов
+		self.offer.fulfilled = True
+		self.offer.save(update_fields=["fulfilled"])
+		self.demand.fulfilled = True
+		self.demand.save(update_fields=["fulfilled"])
+
+	def delete(self, *args, **kwargs):
+		# Сбрасываем флаги у связанных объектов
+		self.offer.fulfilled = False
+		self.offer.save(update_fields=["fulfilled"])
+		self.demand.fulfilled = False
+		self.demand.save(update_fields=["fulfilled"])
+		super().delete(*args, **kwargs)

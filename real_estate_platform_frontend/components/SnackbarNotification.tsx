@@ -1,17 +1,11 @@
 'use client';
 
 import { Alert, Snackbar } from '@mui/material';
-
-interface SnackbarNotificationProps {
-  open: boolean;
-  onClose: () => void;
-  message: string;
-  severity?: 'success' | 'error' | 'warning' | 'info';
-}
+import { SnackbarNotificationProps } from '@/types/types';
 
 export default function SnackbarNotification({
   open,
-  onClose,
+  onCloseAction,
   message,
   severity = 'success',
 }: SnackbarNotificationProps) {
@@ -19,10 +13,10 @@ export default function SnackbarNotification({
     <Snackbar
       open={open}
       autoHideDuration={4000}
-      onClose={onClose}
+      onClose={onCloseAction}
       anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
     >
-      <Alert onClose={onClose} severity={severity} sx={{ width: '100%' }}>
+      <Alert onClose={onCloseAction} severity={severity} sx={{ width: '100%' }}>
         {message}
       </Alert>
     </Snackbar>

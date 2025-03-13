@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import {
+  Box,
   Button,
   CircularProgress,
   IconButton,
@@ -28,6 +29,7 @@ export default function ClientsList() {
   const { data: clientsData = [], isLoading, refetch } = useGetClientsQuery();
   const [query, setQuery] = useState<string>('');
   const [selectedClient, setSelectedClient] = useState<Client | undefined>(undefined);
+  const [editingClient, setEditingClient] = useState<Client | undefined>(undefined);
   const [openForm, setOpenForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -74,22 +76,21 @@ export default function ClientsList() {
     setDeleteId(null);
   };
 
-  // Хук для получения связанных данных выбранного клиента.
-  // Он запускается, только если выбран клиент.
+  // Хук для получения связанных данных выбранного клиента
   const { data: relatedData, isLoading: relatedLoading } = useGetClientRelatedQuery(
     selectedClient?.id ?? 0,
-    { skip: !selectedClient },
+    { skip: !selectedClient || !!editingClient },
   );
 
   return (
-    <div>
+    <Box sx={{ p: 2 }}>
       <TextField
         label="Поиск клиентов"
         variant="outlined"
         fullWidth
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        sx={{ marginBottom: 2 }}
+        sx={{ mb: 2 }}
       />
 
       <Button
@@ -97,53 +98,78 @@ export default function ClientsList() {
         color="primary"
         onClick={() => {
           setSelectedClient(undefined);
+          setEditingClient(undefined);
           setOpenForm(true);
         }}
-        sx={{ marginBottom: 2 }}
+        sx={{ mb: 2 }}
       >
         Добавить клиента
       </Button>
 
       {isLoading ? (
-        <div style={{ textAlign: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
           <CircularProgress />
-        </div>
+        </Box>
       ) : (
         <List>
           {filteredClients.map((client) => (
             <ListItem
               key={client.id}
-              secondaryAction={
-                <>
+              disablePadding
+              sx={{
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                py: 1,
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <ListItemButton
+                component="div"
+                onClick={() => {
+                  if (!editingClient) setSelectedClient(client);
+                }}
+                selected={selectedClient?.id === client.id && !editingClient}
+                sx={{
+                  width: '100%',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <ListItemText
+                  primary={`${client.first_name} ${client.middle_name} ${client.last_name}`}
+                />
+                <Box sx={{ display: 'flex', gap: 1 }}>
                   <IconButton
-                    onClick={() => {
-                      setSelectedClient(client);
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingClient(client);
                       setOpenForm(true);
                     }}
                   >
                     <Edit />
                   </IconButton>
-                  <IconButton onClick={() => handleDelete(client.id)} color="error">
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(client.id);
+                    }}
+                    color="error"
+                  >
                     <Delete />
                   </IconButton>
-                </>
-              }
-            >
-              <ListItemButton
-                onClick={() => setSelectedClient(client)}
-                selected={selectedClient?.id === client.id}
-              >
-                <ListItemText
-                  primary={`${client.first_name} ${client.middle_name} ${client.last_name}`}
-                />
+                </Box>
               </ListItemButton>
             </ListItem>
           ))}
         </List>
       )}
 
-      {/* Панель для отображения связанных данных выбранного клиента */}
-      {selectedClient && (
+      {/* Отображаем связанные данные, если выбран клиент и не в режиме редактирования */}
+      {selectedClient && !editingClient && (
         <RelatedDataDialog
           open={!!selectedClient}
           onCloseAction={() => setSelectedClient(undefined)}
@@ -158,9 +184,13 @@ export default function ClientsList() {
         onSuccess={() => {
           refetch();
           setSelectedClient(undefined);
+          setEditingClient(undefined);
         }}
-        onClose={() => setOpenForm(false)}
-        client={selectedClient}
+        onClose={() => {
+          setOpenForm(false);
+          setEditingClient(undefined);
+        }}
+        client={editingClient}
       />
 
       <ConfirmDialog
@@ -173,10 +203,10 @@ export default function ClientsList() {
 
       <SnackbarNotification
         open={snackbar.open}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onCloseAction={() => setSnackbar({ ...snackbar, open: false })}
         message={snackbar.message}
         severity={snackbar.severity}
       />
-    </div>
+    </Box>
   );
 }

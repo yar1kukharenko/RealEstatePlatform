@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { Offer } from '@/types/types';
+import { Demand, Offer, OfferMutationInput } from '@/types/types';
 
 export const offersApi = createApi({
   reducerPath: 'offersApi',
@@ -10,7 +10,7 @@ export const offersApi = createApi({
       query: () => '/offers/',
       providesTags: ['Offers'],
     }),
-    addOffer: builder.mutation<Offer, Partial<Offer>>({
+    addOffer: builder.mutation<Offer, OfferMutationInput>({
       query: (newOffer) => ({
         url: '/offers/',
         method: 'POST',
@@ -18,7 +18,7 @@ export const offersApi = createApi({
       }),
       invalidatesTags: ['Offers'],
     }),
-    updateOffer: builder.mutation<Offer, { id: number; data: Partial<Offer> }>({
+    updateOffer: builder.mutation<Offer, { id: number; data: OfferMutationInput }>({
       query: ({ id, data }) => ({
         url: `/offers/${id}/`,
         method: 'PUT',
@@ -33,6 +33,9 @@ export const offersApi = createApi({
       }),
       invalidatesTags: ['Offers'],
     }),
+    searchDemandsForOffer: builder.query<Demand[], number>({
+      query: (id) => `/offers/${id}/search_demands/`,
+    }),
   }),
 });
 
@@ -41,4 +44,5 @@ export const {
   useAddOfferMutation,
   useUpdateOfferMutation,
   useDeleteOfferMutation,
+  useSearchDemandsForOfferQuery,
 } = offersApi;

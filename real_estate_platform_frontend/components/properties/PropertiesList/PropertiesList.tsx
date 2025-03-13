@@ -178,7 +178,7 @@ export default function PropertiesList() {
 
       <SnackbarNotification
         open={snackbar.open}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onCloseAction={() => setSnackbar({ ...snackbar, open: false })}
         message={snackbar.message}
         severity={snackbar.severity}
       />

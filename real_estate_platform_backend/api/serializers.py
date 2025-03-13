@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from api.models import Client, Realtor, Property, Offer, Demand
+from api.models import Client, Realtor, Property, Offer, Demand, Deal
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -44,21 +44,25 @@ class PropertySerializer(serializers.ModelSerializer):
 			if data.get("floor") is not None:
 				raise serializers.ValidationError({"floor": "Дом не может иметь поле 'этаж'"})
 		elif property_type == "land":
-			if any(field in data for field in ["floor", "total_floors", "rooms"]):
+			if any(data.get(field) is not None for field in ["floor", "total_floors", "rooms"]):
 				raise serializers.ValidationError(
-					"Земельный участок не может иметь поля 'этаж', 'этажность дома' или 'количество комнат'")
+					"Земельный участок не может иметь поля 'этаж', 'этажность дома' или 'количество комнат'"
+				)
 
 		return data
 
 
 class OfferSerializer(serializers.ModelSerializer):
-	client = ClientSerializer(read_only=True)
-	realtor = RealtorSerializer(read_only=True)
-	property = PropertySerializer(read_only=True)
+	client = serializers.PrimaryKeyRelatedField(queryset=Client.objects.all())
+	property = serializers.PrimaryKeyRelatedField(queryset=Property.objects.all())
+	realtor = serializers.PrimaryKeyRelatedField(
+		queryset=Realtor.objects.all(), required=False, allow_null=True
+	)
 
 	class Meta:
 		model = Offer
-		fields = ('id', 'price', 'status', 'created_at', 'client', 'property', 'realtor')
+		fields = ('id', 'price', 'status', 'created_at', 'client', 'property', 'realtor', 'fulfilled')
+		read_only_fields = ('status', 'created_at', 'fulfilled')
 
 	def validate_price(self, value):
 		# Здесь можно добавить дополнительную логику проверки цены
@@ -71,33 +75,80 @@ class OfferSerializer(serializers.ModelSerializer):
 			raise serializers.ValidationError("Клиент обязателен")
 		return value
 
+	def to_representation(self, instance):
+		representation = super().to_representation(instance)
+		# Преобразуем числовые id в вложенные объекты при выводе
+		representation['client'] = ClientSerializer(instance.client).data
+		representation['property'] = PropertySerializer(instance.property).data
+		representation['realtor'] = (
+			RealtorSerializer(instance.realtor).data if instance.realtor else None
+		)
+		return representation
+
 
 class DemandSerializer(serializers.ModelSerializer):
-	client = ClientSerializer(read_only=True)
-	realtor = RealtorSerializer(read_only=True)
-	address = PropertySerializer(read_only=True)
+	client = serializers.PrimaryKeyRelatedField(queryset=Client.objects.all())
+	realtor = serializers.PrimaryKeyRelatedField(queryset=Realtor.objects.all(), required=True, allow_null=False)
+	address = serializers.PrimaryKeyRelatedField(queryset=Property.objects.all())
 
 	class Meta:
 		model = Demand
 		fields = '__all__'
- 
+		read_only_fields = ('created_at', 'fulfilled')
+
 	def validate(self, data):
 		if data['min_price'] >= data['max_price']:
 			raise serializers.ValidationError("Минимальная цена должна быть меньше максимальной")
 
-		# Валидация дополнительных полей в зависимости от типа объекта недвижимости
-		property_type = data.get('property_type')
-		if property_type == 'apartment':
-			required = ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_floor', 'max_floor']
-		elif property_type == 'house':
-			required = ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_total_floors', 'max_total_floors']
-		elif property_type == 'land':
-			required = ['min_area', 'max_area']
-		else:
-			required = []
-
-		for field in required:
-			if data.get(field) is None:
-				raise serializers.ValidationError({field: "Это поле обязательно для выбранного типа недвижимости"})
-
+		# Дополнительная проверка может быть оставлена только для проверки корректности, но не обязательности:
+		# Например, если поле указано, оно должно быть положительным:
+		for field in ['min_area', 'max_area', 'min_rooms', 'max_rooms', 'min_floor', 'max_floor',
+		              'min_total_floors', 'max_total_floors']:
+			value = data.get(field)
+			if value is not None and value <= 0:
+				raise serializers.ValidationError({field: "Значение должно быть положительным"})
 		return data
+
+	def to_representation(self, instance):
+		representation = super().to_representation(instance)
+		representation['client'] = ClientSerializer(instance.client).data
+		representation['realtor'] = RealtorSerializer(instance.realtor).data
+		representation['address'] = PropertySerializer(instance.address).data
+		return representation
+
+
+class DealSerializer(serializers.ModelSerializer):
+	offer_details = serializers.SerializerMethodField()
+	demand_details = serializers.SerializerMethodField()
+
+	class Meta:
+		model = Deal
+		fields = '__all__'
+		read_only_fields = (
+			'seller_fee',
+			'buyer_fee',
+			'company_share',
+			'realtor_share',
+			'created_at'
+		)
+
+	def create(self, validated_data):
+		deal = Deal(**validated_data)
+		# Не нужно вызывать full_clean() здесь, если save() вызовет его
+		deal.save()
+		return deal
+
+	def get_offer_details(self, obj):
+		return {
+			"id": obj.offer.id,
+			"price": obj.offer.price,
+			"property": obj.offer.property.get_full_address()
+		}
+
+	def get_demand_details(self, obj):
+		return {
+			"id": obj.demand.id,
+			"min_price": obj.demand.min_price,
+			"max_price": obj.demand.max_price,
+			"property_type": obj.demand.property_type,
+		}

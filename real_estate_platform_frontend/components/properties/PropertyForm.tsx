@@ -95,6 +95,20 @@ export default function PropertyForm({ open, onClose, property }: PropertyFormPr
         await addProperty(data).unwrap();
       }
       onClose();
+      reset({
+        property_type: 'apartment',
+        description: '',
+        city: '',
+        street: '',
+        house_number: '',
+        apartment_number: '',
+        latitude: null,
+        longitude: null,
+        floor: null,
+        total_floors: null,
+        rooms: null,
+        area: null,
+      });
     } catch (error) {
       console.error('Ошибка при сохранении объекта недвижимости', error);
     }

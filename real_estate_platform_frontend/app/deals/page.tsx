@@ -1,13 +1,13 @@
-import DemandsList from '@/components/demands/DemandsList/DemandsList';
 import { Container, Typography } from '@mui/material';
+import DealsList from '@/components/deals/DealsList';
 
-export default function DemandsPage() {
+export default function DealsPage() {
   return (
     <Container>
       <Typography variant="h4" sx={{ marginBottom: 2 }}>
-        Потребности
+        Сделки
       </Typography>
-      <DemandsList />
+      <DealsList />
     </Container>
   );
 }

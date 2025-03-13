@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import ReduxProvider from '@/store/ReduxProvider';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+import Navbar from '@/components/Navbar';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -28,7 +29,10 @@ export default function RootLayout({
     <html lang="ru">
       <AppRouterCacheProvider>
         <ReduxProvider>
-          <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
+          <body className={`${geistSans.variable} ${geistMono.variable}`}>
+            <Navbar />
+            {children}
+          </body>
         </ReduxProvider>
       </AppRouterCacheProvider>
     </html>

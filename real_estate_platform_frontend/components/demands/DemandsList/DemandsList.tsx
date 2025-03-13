@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Card,
+  Chip,
   CircularProgress,
   Divider,
   Grid,
@@ -14,13 +15,16 @@ import {
 import { Delete, Edit } from '@mui/icons-material';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import SnackbarNotification from '@/components/SnackbarNotification';
-import { useDeleteOfferMutation, useGetOffersQuery } from '@/services/offersApi';
-import { Offer } from '@/types/types';
-import OfferForm from '@/components/offers/OfferForm';
+import { useDeleteDemandMutation, useGetDemandsQuery } from '@/services/demandsApi';
+import { Demand } from '@/types/types';
+import DemandForm from '@/components/demands/DemandForm';
+import { propertyTypeDict } from '@/utils/propertyTypeDict';
 
-export default function OffersList() {
-  const { data: offersData = [], isLoading, refetch } = useGetOffersQuery();
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+import styles from './DemandsList.module.scss';
+
+export default function DemandsList() {
+  const { data: demandsData = [], isLoading, refetch } = useGetDemandsQuery();
+  const [selectedDemand, setSelectedDemand] = useState<Demand>();
   const [openForm, setOpenForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -34,7 +38,7 @@ export default function OffersList() {
     severity: 'success',
   });
 
-  const [deleteOffer] = useDeleteOfferMutation();
+  const [deleteDemand] = useDeleteDemandMutation();
 
   const handleDelete = (id: number) => {
     setDeleteId(id);
@@ -44,12 +48,12 @@ export default function OffersList() {
   const confirmDeleteAction = async () => {
     if (!deleteId) return;
     try {
-      await deleteOffer(deleteId).unwrap();
-      setSnackbar({ open: true, message: 'Предложение удалено', severity: 'success' });
+      await deleteDemand(deleteId).unwrap();
+      setSnackbar({ open: true, message: 'Потребность удалена', severity: 'success' });
       await refetch();
     } catch (error) {
       console.error(error);
-      setSnackbar({ open: true, message: 'Ошибка при удалении предложения', severity: 'error' });
+      setSnackbar({ open: true, message: 'Ошибка при удалении потребности', severity: 'error' });
     }
     setConfirmDelete(false);
     setDeleteId(null);
@@ -61,12 +65,12 @@ export default function OffersList() {
         variant="contained"
         color="primary"
         onClick={() => {
-          setSelectedOffer(null);
+          setSelectedDemand(undefined);
           setOpenForm(true);
         }}
         sx={{ mb: 2 }}
       >
-        Добавить предложение
+        Добавить потребность
       </Button>
 
       {isLoading ? (
@@ -75,35 +79,37 @@ export default function OffersList() {
         </Box>
       ) : (
         <Grid container spacing={2} alignItems="stretch">
-          {offersData.map((offer) => (
-            <Grid item xs={12} sm={6} md={4} key={offer.id}>
+          {demandsData.map((demand) => (
+            <Grid item xs={12} sm={6} md={4} key={demand.id}>
               <Card
                 variant="outlined"
+                className={styles.card}
                 sx={{
                   p: 2,
                   borderRadius: 2,
                   minWidth: 280,
-                  height: '100%', // Заставляем карточку занимать всю высоту
+                  height: '100%', // заставляем карточку занимать всю доступную высоту
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
                 }}
               >
-                <Box sx={{ pb: 2, flex: '1 1 auto' }}>
+                <Box sx={{ pb: 2 }}>
                   <Grid container alignItems="center" justifyContent="space-between">
                     <Grid item xs={8}>
                       <Typography variant="subtitle1" fontWeight="bold">
-                        {offer.client.middle_name} {offer.client.last_name}
+                        {demand.client.first_name} {demand.client.middle_name}
                       </Typography>
                     </Grid>
                   </Grid>
-                  {offer.realtor && (
+
+                  {demand.realtor && (
                     <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
-                      Риелтор: {offer.realtor.first_name} {offer.realtor.middle_name}
+                      Риелтор: {demand.realtor.first_name} {demand.realtor.middle_name}
                     </Typography>
                   )}
-                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
-                    Объект: {offer.property.full_address}
+                  <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                    Адрес: {demand.address.full_address}
                   </Typography>
                 </Box>
                 <Divider sx={{ mb: 1 }} />
@@ -117,30 +123,41 @@ export default function OffersList() {
                     textAlign: 'center',
                   }}
                 >
-                  <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
-                    {offer.price} руб.
+                  <Typography variant="subtitle2">
+                    {demand.min_price} - {demand.max_price} руб.
                   </Typography>
                 </Box>
                 <Box sx={{ pt: 1 }}>
-                  <Grid container justifyContent="flex-end" spacing={1}>
+                  <Grid container alignItems="center" justifyContent="space-between">
                     <Grid item>
-                      <IconButton
-                        onClick={() => {
-                          setSelectedOffer(offer);
-                          setOpenForm(true);
-                        }}
-                      >
-                        <Edit />
-                      </IconButton>
+                      <Chip
+                        label={propertyTypeDict[demand.property_type] || demand.property_type}
+                        variant="outlined"
+                        color="secondary"
+                      />
                     </Grid>
                     <Grid item>
-                      <IconButton
-                        disabled={offer.fulfilled}
-                        onClick={() => handleDelete(offer.id)}
-                        color="error"
-                      >
-                        <Delete />
-                      </IconButton>
+                      <Grid container spacing={1}>
+                        <Grid item>
+                          <IconButton
+                            onClick={() => {
+                              setSelectedDemand(demand);
+                              setOpenForm(true);
+                            }}
+                          >
+                            <Edit />
+                          </IconButton>
+                        </Grid>
+                        <Grid item>
+                          <IconButton
+                            disabled={demand.fulfilled}
+                            onClick={() => handleDelete(demand.id)}
+                            color="error"
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Grid>
+                      </Grid>
                     </Grid>
                   </Grid>
                 </Box>
@@ -150,14 +167,18 @@ export default function OffersList() {
         </Grid>
       )}
 
-      <OfferForm open={openForm} onCloseAction={() => setOpenForm(false)} offer={selectedOffer} />
+      <DemandForm
+        open={openForm}
+        onCloseAction={() => setOpenForm(false)}
+        demand={selectedDemand}
+      />
 
       <ConfirmDialog
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         onConfirm={confirmDeleteAction}
-        title="Удаление предложения"
-        description="Вы уверены, что хотите удалить это предложение? Это действие нельзя отменить."
+        title="Удаление потребности"
+        description="Вы уверены, что хотите удалить эту потребность? Это действие нельзя отменить."
       />
 
       <SnackbarNotification

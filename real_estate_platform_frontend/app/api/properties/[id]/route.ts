@@ -17,7 +17,6 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error(error);
     return NextResponse.json({ error: 'Ошибка обновления недвижимости' }, { status: 500 });
   }
 }
@@ -29,7 +28,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     });
 
     if (!res.ok) throw new Error('Ошибка удаления недвижимости');
-    return NextResponse.json({ message: 'Недвижимость удалена' }, { status: 500 });
+    return NextResponse.json({ message: 'Недвижимость удалена' }, { status: 200 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'Ошибка удаления недвижимости' }, { status: 500 });
